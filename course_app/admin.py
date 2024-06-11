@@ -5,10 +5,6 @@ from . import models
 # Register your models here.
 
 
-# class SeasonInLine(admin.TabularInline):
-#     model = models.Season
-
-
 @admin.register(models.Category)
 class CategoryAdmin(admin.ModelAdmin):
     search_fields = ["title"]
@@ -25,7 +21,7 @@ class LectureInLine(admin.TabularInline):
 
 
 class RequirementsInLine(admin.TabularInline):
-    model = models.Requirements
+    model = models.Prerequisite
 
 
 @admin.register(models.Course)
@@ -40,3 +36,7 @@ class CourseAdmin(admin.ModelAdmin):
 class SeasonAdmin(admin.ModelAdmin):
     autocomplete_fields = ["course"]
     inlines = [LectureInLine]
+
+
+admin.site.register(models.Enrollment)
+admin.site.register(models.Review)

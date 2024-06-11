@@ -25,12 +25,12 @@ class Language(models.Model):
 
 
 class Course(models.Model):
-    title = models.CharField(max_length=75, unique=True)
+    title = models.CharField(max_length=100, unique=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, related_name="categories",
                                  null=True, blank=True)
     instructors = models.ManyToManyField(User, related_name="instructor_courses")
     description = models.TextField()
-    language = models.ForeignKey(Language, on_delete=models.SET_NULL, related_name="language_courses", null=True,
+    language = models.ForeignKey(Language, on_delete=models.PROTECT, related_name="language_courses", null=True,
                                  blank=True)
     thumbnail = models.ImageField(upload_to="course_thumbnails", null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -69,7 +69,7 @@ class Course(models.Model):
 
 
 class Season(models.Model):
-    title = models.CharField(max_length=75)
+    title = models.CharField(max_length=100)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="course_seasons")
 
     def __str__(self):
@@ -77,7 +77,7 @@ class Season(models.Model):
 
 
 class Lecture(models.Model):
-    title = models.CharField(max_length=75)
+    title = models.CharField(max_length=100)
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name="season_lectures")
     file = models.FileField(upload_to="courses/files/")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -86,9 +86,47 @@ class Lecture(models.Model):
         return f"{self.title} - Seasons: {self.season.title}"
 
 
-class Requirements(models.Model):
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="course_requirements")
+class Prerequisite(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="course_prerequisite")
     title = models.CharField(max_length=75)
 
     def __str__(self):
         return self.title
+
+
+class Enrollment(models.Model):
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="user_courses")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="user_courses")
+    purchased_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.course.title}"
+
+
+choices = ((1, 1), (2, 2), (3, 3), (4, 4), (5, 5))
+
+
+class Review(models.Model):
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_reviews")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="comments")
+    text = models.TextField()
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, related_name="replies", null=True, blank=True)
+    rating = models.IntegerField(choices=choices, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.author.username} - {self.course.title} - {self.rating} - {self.text[:15]}"
+
+    def time_difference(self):
+        if self.created_at:
+            now = timezone.now()
+            time_difference = now - self.created_at
+            time_difference = time_difference.total_seconds() / 60
+            # To show the time like this '2.2' instead of '2.1123516123'
+            return round(time_difference, 1)
+
+    def save(self, *args, **kwargs):
+        if self.parent:
+            if self.rating:
+                self.rating = None
+        super(Review, self).save(*args, **kwargs)

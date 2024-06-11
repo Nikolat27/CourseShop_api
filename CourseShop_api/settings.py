@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "accounts_app.apps.AccountsAppConfig",
     "rest_framework_simplejwt",
-    "course_app.apps.CourseAppConfig"
+    "course_app.apps.CourseAppConfig",
+    "cart_app.apps.CartAppConfig"
 ]
 
 MIDDLEWARE = [
