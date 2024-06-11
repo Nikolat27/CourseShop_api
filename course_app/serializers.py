@@ -16,6 +16,18 @@ class ReviewSerializer(serializers.ModelSerializer):
         return obj.time_difference()
 
 
+class SubtitleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Subtitle
+        fields = "__all__"
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Category
+        fields = "__all__"
+
+
 class PrerequisiteSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Prerequisite
@@ -88,15 +100,15 @@ class CourseSerializer(serializers.ModelSerializer):
     def get_total_hours(self, obj):
         lectures = models.Lecture.objects.filter(season__course=obj)
         total_hours = 0
-        for lecture in lectures:
-            file_path = lecture.file.path
-            result = subprocess.run(
-                ['ffprobe', '-i', file_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv=p=0'],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-            if result.returncode == 0:
-                duration = float(result.stdout)
-                total_hours += duration / 3600  # Convert duration from seconds to hours
+        # for lecture in lectures:
+        #     file_path = lecture.file.path
+        #     result = subprocess.run(
+        #         ['ffprobe', '-i', file_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv=p=0'],
+        #         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        #
+        #     if result.returncode == 0:
+        #         duration = float(result.stdout)
+        #         total_hours += duration / 3600  # Convert duration from seconds to hours
         return total_hours
 
 

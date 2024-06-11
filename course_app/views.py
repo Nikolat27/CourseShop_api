@@ -1,3 +1,4 @@
+from django.db.models import Avg
 from django.shortcuts import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
@@ -5,7 +6,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 from . import serializers
-from .models import Course, Season, Lecture, Prerequisite, Enrollment, Review
+from .models import Course, Season, Lecture, Prerequisite, Enrollment, Review, Subtitle, Category
 
 
 # Create your views here.
@@ -142,3 +143,67 @@ class DeleteReviewView(APIView):
             else:
                 return Response({"response": "You do not have the permission do delete this comment"},
                                 status=status.HTTP_400_BAD_REQUEST)
+
+
+class SearchCourseView(APIView):
+    def get(self, request):
+        q = request.data.get("q")
+        if q:
+            courses = Course.objects.filter(title__icontains=q)
+            serializer = serializers.CourseSerializer(instance=courses, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class SubtitlesView(APIView):
+    def get(self, request):
+        subtitles = Subtitle.objects.all()
+        serializer = serializers.SubtitleSerializer(subtitles, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CategoryView(APIView):
+    def get(self, request):
+        categories = Category.objects.all()
+        serializer = serializers.CategorySerializer(categories, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CourseFilterView(APIView):
+    def get(self, request):
+        languages = request.GET.getlist("language")
+        subtitles = request.GET.getlist("subtitle")
+        categories = request.GET.getlist("category")
+        paid = request.GET.get("paid")
+        free = request.GET.get("free")
+        sort = request.GET.get("sort")
+        min_price = request.GET.get("min_price")
+        max_price = request.GET.get("max_price")
+
+        courses = Course.objects.all().order_by("-created_at").distinct()
+        if categories:
+            courses = Course.objects.filter(category__title__in=categories).order_by("-created_at").distinct()
+
+        if languages:
+            courses = Course.objects.filter(language__title__in=languages).order_by("-created_at").distinct()
+
+        if subtitles:
+            courses = Course.objects.filter(subtitles__title__in=subtitles).order_by("-created_at").distinct()
+
+        if paid:
+            courses = Course.objects.filter(costly=True).order_by("-created_at").distinct()
+
+        if free:
+            courses = Course.objects.filter(costly=False).order_by("-created_at").distinct()
+
+        if min_price and max_price:
+            courses = Course.objects.filter(price__gte=min_price, price__lte=max_price)
+
+        if sort == "new":
+            courses = courses.order_by("-created_at").distinct()
+        elif sort == "popular":
+            courses = Course.objects.annotate(avg_rating=Avg('comments__rating')).order_by('-avg_rating')
+        elif sort == "discounted":
+            courses = Course.objects.filter(is_discounted=True).order_by("-created_at").distinct()
+
+        serializer = serializers.CourseSerializer(courses, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

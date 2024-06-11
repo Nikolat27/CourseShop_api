@@ -10,4 +10,7 @@ urlpatterns = [
     path("check_user_enrollment", views.CheckUserEnrollmentView.as_view()),
     path("create_review/<int:pk>", views.CreateReviewView.as_view()),
     path("delete_review/<int:pk>", views.DeleteReviewView.as_view()),
+    path("subtitles", views.SubtitlesView.as_view()),
+    path("categories", views.CategoryView.as_view()),
+    path("filter-data", views.CourseFilterView.as_view()),
 ]

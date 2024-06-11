@@ -40,7 +40,8 @@ INSTALLED_APPS = [
     "accounts_app.apps.AccountsAppConfig",
     "rest_framework_simplejwt",
     "course_app.apps.CourseAppConfig",
-    "cart_app.apps.CartAppConfig"
+    "cart_app.apps.CartAppConfig",
+    "moviepy"
 ]
 
 MIDDLEWARE = [

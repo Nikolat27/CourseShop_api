@@ -2,7 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.text import slugify
-
+from moviepy.editor import *
 from accounts_app.models import User
 
 
@@ -17,11 +17,22 @@ class Category(models.Model):
         return self.title
 
 
+class Subtitle(models.Model):
+    title = models.CharField(max_length=50)
+
+    def __str__(self):
+        return self.title
+
+
 class Language(models.Model):
     title = models.CharField(max_length=20)
 
     def __str__(self):
         return self.title
+
+
+levels = (("All Levels", "All Levels"), ("Beginner", "Beginner"),
+          ("Intermediate", "Intermediate"), ("Advanced", "Advanced"),)
 
 
 class Course(models.Model):
@@ -33,8 +44,12 @@ class Course(models.Model):
     language = models.ForeignKey(Language, on_delete=models.PROTECT, related_name="language_courses", null=True,
                                  blank=True)
     thumbnail = models.ImageField(upload_to="course_thumbnails", null=True, blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    costly = models.BooleanField(default=False)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                help_text="If you did set the 'costly' field False, Do Not touch this field pls")
     discount_percentage = models.PositiveSmallIntegerField(default=0)
+    subtitles = models.ManyToManyField(Subtitle)
+    level = models.CharField(max_length=20, choices=levels, null=True, blank=True)
     slug = models.SlugField(unique=True, null=True, blank=True, allow_unicode=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -79,11 +94,19 @@ class Season(models.Model):
 class Lecture(models.Model):
     title = models.CharField(max_length=100)
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name="season_lectures")
-    file = models.FileField(upload_to="courses/files/")
+    file = models.FileField(upload_to="courses/files/videos")
+    duration = models.FloatField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.title} - Seasons: {self.season.title}"
+
+    def save(self, *args, **kwargs):
+        if self.file:
+            clip = VideoFileClip(self.file.path)
+            self.duration = int(clip.duration)
+            clip.close()
+        super(Lecture, self).save(*args, **kwargs)
 
 
 class Prerequisite(models.Model):
@@ -98,6 +121,7 @@ class Enrollment(models.Model):
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="user_courses")
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="user_courses")
     purchased_at = models.DateTimeField(auto_now_add=True)
+    purchased_price = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.course.title}"
