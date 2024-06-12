@@ -1,6 +1,7 @@
-from django.db.models import Avg
+from django.db.models import Avg, Count
 from django.shortcuts import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
@@ -169,6 +170,8 @@ class CategoryView(APIView):
 
 
 class CourseFilterView(APIView):
+    permission_classes = [AllowAny]
+
     def get(self, request):
         languages = request.GET.getlist("language")
         subtitles = request.GET.getlist("subtitle")
@@ -176,34 +179,44 @@ class CourseFilterView(APIView):
         paid = request.GET.get("paid")
         free = request.GET.get("free")
         sort = request.GET.get("sort")
+        print(free, paid)
         min_price = request.GET.get("min_price")
         max_price = request.GET.get("max_price")
 
         courses = Course.objects.all().order_by("-created_at").distinct()
         if categories:
-            courses = Course.objects.filter(category__title__in=categories).order_by("-created_at").distinct()
+            courses = Course.objects.filter(category__title__in=categories)
 
         if languages:
-            courses = Course.objects.filter(language__title__in=languages).order_by("-created_at").distinct()
+            courses = Course.objects.filter(language__title__in=languages)
 
         if subtitles:
-            courses = Course.objects.filter(subtitles__title__in=subtitles).order_by("-created_at").distinct()
+            courses = Course.objects.filter(subtitles__title__in=subtitles)
 
-        if paid:
-            courses = Course.objects.filter(costly=True).order_by("-created_at").distinct()
-
-        if free:
-            courses = Course.objects.filter(costly=False).order_by("-created_at").distinct()
+        if paid and free:
+            courses = Course.objects.filter(costly=True) | Course.objects.filter(costly=False)
+        elif paid:
+            courses = Course.objects.filter(costly=True)
+        elif free:
+            courses = Course.objects.filter(costly=False)
 
         if min_price and max_price:
             courses = Course.objects.filter(price__gte=min_price, price__lte=max_price)
 
         if sort == "new":
-            courses = courses.order_by("-created_at").distinct()
-        elif sort == "popular":
+            courses = courses.order_by("-created_at")
+        elif sort == "highest_rated":
             courses = Course.objects.annotate(avg_rating=Avg('comments__rating')).order_by('-avg_rating')
+            serializer = serializers.CourseSerializer(courses, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        elif sort == "most_reviewed":
+            courses = Course.objects.annotate(total_comments=Count('comments')).order_by('-comments')
+            serializer = serializers.CourseSerializer(courses, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         elif sort == "discounted":
-            courses = Course.objects.filter(is_discounted=True).order_by("-created_at").distinct()
+            courses = Course.objects.filter(is_discounted=True)
+
+        courses = courses.order_by("-created_at").distinct()
 
         serializer = serializers.CourseSerializer(courses, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

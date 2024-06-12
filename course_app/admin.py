@@ -40,3 +40,4 @@ class SeasonAdmin(admin.ModelAdmin):
 
 admin.site.register(models.Enrollment)
 admin.site.register(models.Review)
+admin.site.register(models.Subtitle)
