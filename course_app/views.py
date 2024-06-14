@@ -1,9 +1,11 @@
 from urllib import parse
 from django.db.models import Avg, Count
-from django.http import QueryDict
+from django.http import QueryDict, HttpRequest, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
+from django.test import RequestFactory
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
+from rest_framework.test import APIRequestFactory
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
@@ -184,6 +186,7 @@ class CourseFilterView(APIView, PageNumberPagination):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        print("Your request: ", request)
         languages = request.GET.getlist("language")
         subtitles = request.GET.getlist("subtitle")
         categories = request.GET.getlist("category")
@@ -250,7 +253,11 @@ class ClearFilterView(APIView):
         # '(?page=1&q=python)' through urlparse module
         # 3. We need to change the queries to a dictionary like this: {'page': ['1'], 'q': ['python']} with parse_qs
         url_path = request.GET.get("url_path")
+        # url_path value must be the value of 'url_path' variable in CourseFilterView
+        # Using parse.urlparse helps us to get the GET parameters of the url_path with 'parsed_url.query'
         parsed_url = parse.urlparse(url_path)
+
+        # query_params is not cleared
         query_params = parse.parse_qs(parsed_url.query)
 
         # 4. Then we have to keep only the parameters which are needed like page, q and sort
@@ -259,8 +266,9 @@ class ClearFilterView(APIView):
         # 5. After that we must request to the CourseFilterView class to filter the courses again, So
         # We have to change the cleared_queries which is a dictionary to a query because HTTP GET queries do not
         # accept dictionary, like: {'page': ['1'], 'q': ['python']} = ?page=1&q=python.
-        queries = parse.urlencode(cleared_queries, doseq=True)
 
-        # Call the CourseFilterView with the updated request object
-        response = CourseFilterView().get(request=request)
-        return response
+        # Reconstruct the URL with filtered query parameters and queries is cleared
+        new_query_params = parse.urlencode(cleared_queries, doseq=True)
+        print(new_query_params)
+        new_url = f"/course/filter-data?{new_query_params}"
+        return HttpResponseRedirect(new_url)
