@@ -29,6 +29,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class PrerequisiteSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = models.Prerequisite
         fields = "__all__"

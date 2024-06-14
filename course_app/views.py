@@ -169,7 +169,7 @@ class CategoryView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class CourseFilterView(APIView):
+class CourseFilterView(APIView, PageNumberPagination):
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -179,44 +179,40 @@ class CourseFilterView(APIView):
         paid = request.GET.get("paid")
         free = request.GET.get("free")
         sort = request.GET.get("sort")
-        print(free, paid)
+        size = request.GET.get("size", 1)
+        self.page_size = int(size)
         min_price = request.GET.get("min_price")
         max_price = request.GET.get("max_price")
 
         courses = Course.objects.all().order_by("-created_at").distinct()
         if categories:
-            courses = Course.objects.filter(category__title__in=categories)
+            courses = courses.filter(category__title__in=categories)
 
         if languages:
-            courses = Course.objects.filter(language__title__in=languages)
+            courses = courses.filter(language__title__in=languages)
 
         if subtitles:
-            courses = Course.objects.filter(subtitles__title__in=subtitles)
+            courses = courses.filter(subtitles__title__in=subtitles)
 
         if paid and free:
-            courses = Course.objects.filter(costly=True) | Course.objects.filter(costly=False)
+            courses = courses.filter(costly=True) | Course.objects.filter(costly=False)
         elif paid:
-            courses = Course.objects.filter(costly=True)
+            courses = courses.filter(costly=True)
         elif free:
-            courses = Course.objects.filter(costly=False)
+            courses = courses.filter(costly=False)
 
         if min_price and max_price:
-            courses = Course.objects.filter(price__gte=min_price, price__lte=max_price)
+            courses = courses.filter(price__range=(min_price, max_price))
 
         if sort == "new":
             courses = courses.order_by("-created_at")
         elif sort == "highest_rated":
-            courses = Course.objects.annotate(avg_rating=Avg('comments__rating')).order_by('-avg_rating')
-            serializer = serializers.CourseSerializer(courses, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            courses = courses.annotate(avg_rating=Avg('comments__rating')).order_by('-avg_rating')
         elif sort == "most_reviewed":
-            courses = Course.objects.annotate(total_comments=Count('comments')).order_by('-comments')
-            serializer = serializers.CourseSerializer(courses, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            courses = courses.annotate(total_comments=Count('comments')).order_by('-comments')
         elif sort == "discounted":
-            courses = Course.objects.filter(is_discounted=True)
+            courses = courses.filter(is_discounted=True)
 
-        courses = courses.order_by("-created_at").distinct()
-
-        serializer = serializers.CourseSerializer(courses, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        paginated_queryset = self.paginate_queryset(courses, request=request)
+        serializer = serializers.CourseSerializer(paginated_queryset, many=True)
+        return self.get_paginated_response(serializer.data)
