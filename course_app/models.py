@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Avg
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.text import slugify
@@ -52,7 +53,7 @@ class Course(models.Model):
     level = models.CharField(max_length=20, choices=levels, null=True, blank=True)
     slug = models.SlugField(unique=True, null=True, blank=True, allow_unicode=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateField(auto_now=True)
 
     def save(self, *args, **kwargs):
         if self.title:
@@ -63,6 +64,13 @@ class Course(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.category.title}"
+
+    def average_review(self):
+        review = self.comments.aggregate(reviews=Avg("rating"))
+        avg = 0
+        if review['reviews'] is not None:
+            avg = float(review['reviews'])
+        return avg
 
     def discounted_price(self):
         if self.discount_percentage > 0:

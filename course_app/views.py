@@ -1,4 +1,6 @@
+from urllib import parse
 from django.db.models import Avg, Count
+from django.http import QueryDict
 from django.shortcuts import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
@@ -7,10 +9,19 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 from . import serializers
+import requests
 from .models import Course, Season, Lecture, Prerequisite, Enrollment, Review, Subtitle, Category
 
 
 # Create your views here.
+
+class CustomResponse(Response):
+    def __init__(self, data=None, total_results=None, status=None, template_name=None, headers=None,
+                 exception=False, content_type=None, next=None, previous=None, url_path=None):
+        data = {"data": data, "total_results": total_results, 'next': next, 'previous': previous,
+                'url_path': url_path}
+        super().__init__(data=data, status=status, template_name=template_name, headers=headers,
+                         exception=exception, content_type=content_type)
 
 
 class CourseViewSet(ViewSet, PageNumberPagination):
@@ -183,10 +194,21 @@ class CourseFilterView(APIView, PageNumberPagination):
         self.page_size = int(size)
         min_price = request.GET.get("min_price")
         max_price = request.GET.get("max_price")
+        ratings = request.GET.get("ratings")
+        url_path = request.get_full_path()
+        q = request.GET.get("q")
 
         courses = Course.objects.all().order_by("-created_at").distinct()
+
+        # Filtering Starts from here
+        if q:
+            courses = courses.filter(title__icontains=q)
+
         if categories:
             courses = courses.filter(category__title__in=categories)
+
+        if ratings:
+            courses = courses.filter(comments__rating__gte=ratings)
 
         if languages:
             courses = courses.filter(language__title__in=languages)
@@ -195,7 +217,7 @@ class CourseFilterView(APIView, PageNumberPagination):
             courses = courses.filter(subtitles__title__in=subtitles)
 
         if paid and free:
-            courses = courses.filter(costly=True) | Course.objects.filter(costly=False)
+            courses = courses.filter(costly=True) | courses.filter(costly=False)
         elif paid:
             courses = courses.filter(costly=True)
         elif free:
@@ -209,10 +231,36 @@ class CourseFilterView(APIView, PageNumberPagination):
         elif sort == "highest_rated":
             courses = courses.annotate(avg_rating=Avg('comments__rating')).order_by('-avg_rating')
         elif sort == "most_reviewed":
-            courses = courses.annotate(total_comments=Count('comments')).order_by('-comments')
+            courses = courses.annotate(total_comments=Count('comments')).order_by('-total_comments')
         elif sort == "discounted":
             courses = courses.filter(is_discounted=True)
 
         paginated_queryset = self.paginate_queryset(courses, request=request)
         serializer = serializers.CourseSerializer(paginated_queryset, many=True)
-        return self.get_paginated_response(serializer.data)
+        total_results = courses.count()
+        return CustomResponse(serializer.data, total_results=total_results, next=self.get_next_link(),
+                              previous=self.get_previous_link(), url_path=url_path)
+
+
+class ClearFilterView(APIView):
+    def get(self, request):
+        # For clearing the filters we have to these things in order:
+        # 1. We need the full url path like this: /course/filter-data?page=1&q=python
+        # 2. We need to get the path: '(/course/filter-data)' and the queries:
+        # '(?page=1&q=python)' through urlparse module
+        # 3. We need to change the queries to a dictionary like this: {'page': ['1'], 'q': ['python']} with parse_qs
+        url_path = request.GET.get("url_path")
+        parsed_url = parse.urlparse(url_path)
+        query_params = parse.parse_qs(parsed_url.query)
+
+        # 4. Then we have to keep only the parameters which are needed like page, q and sort
+        cleared_queries = {k: v for k, v in query_params.items() if k in ["page", "q", "sort"]}
+
+        # 5. After that we must request to the CourseFilterView class to filter the courses again, So
+        # We have to change the cleared_queries which is a dictionary to a query because HTTP GET queries do not
+        # accept dictionary, like: {'page': ['1'], 'q': ['python']} = ?page=1&q=python.
+        queries = parse.urlencode(cleared_queries, doseq=True)
+
+        # Call the CourseFilterView with the updated request object
+        response = CourseFilterView().get(request=request)
+        return response

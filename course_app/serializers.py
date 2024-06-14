@@ -29,7 +29,6 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class PrerequisiteSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.Prerequisite
         fields = "__all__"
@@ -55,6 +54,7 @@ class CourseSerializer(serializers.ModelSerializer):
     lectures = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
     average_review = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
     season_numbers = serializers.SerializerMethodField()
     lecture_numbers = serializers.SerializerMethodField()
     total_hours = serializers.SerializerMethodField()
@@ -86,14 +86,14 @@ class CourseSerializer(serializers.ModelSerializer):
         return serializer.data
 
     def get_average_review(self, obj):
-        review = models.Review.objects.filter(course=obj).aggregate(reviews=Avg("rating"))
+        review = obj.comments.aggregate(reviews=Avg("rating"))
         avg = 0
         if review['reviews'] is not None:
             avg = float(review['reviews'])
         return avg
 
     def get_season_numbers(self, obj):
-        return models.Season.objects.filter(course=obj).count()
+        return obj.course_seasons.count()
 
     def get_lecture_numbers(self, obj):
         return models.Lecture.objects.filter(season__course=obj).count()
@@ -111,6 +111,9 @@ class CourseSerializer(serializers.ModelSerializer):
         #         duration = float(result.stdout)
         #         total_hours += duration / 3600  # Convert duration from seconds to hours
         return total_hours
+
+    def get_total_reviews(self, obj):
+        return obj.comments.all().count()
 
 
 class EnrollmentSerializer(serializers.ModelSerializer):
