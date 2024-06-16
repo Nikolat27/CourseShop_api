@@ -10,6 +10,7 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 class CartSerializer(serializers.ModelSerializer):
     cart_items = serializers.SerializerMethodField()
+    subtotal = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Cart
@@ -18,3 +19,6 @@ class CartSerializer(serializers.ModelSerializer):
     def get_cart_items(self, obj):
         serializer = CartItemSerializer(obj.cart_items.all(), many=True)
         return serializer.data
+
+    def get_subtotal(self, obj):
+        return obj.subtotal()

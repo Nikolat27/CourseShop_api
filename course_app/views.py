@@ -251,10 +251,9 @@ class ClearFilterView(APIView):
         # 1. We need the full url path like this: /course/filter-data?page=1&q=python
         # 2. We need to get the path: '(/course/filter-data)' and the queries:
         # '(?page=1&q=python)' through urlparse module
-        # 3. We need to change the queries to a dictionary like this: {'page': ['1'], 'q': ['python']} with parse_qs
         url_path = request.GET.get("url_path")
         # url_path value must be the value of 'url_path' variable in CourseFilterView
-        # Using parse.urlparse helps us to get the GET parameters of the url_path with 'parsed_url.query'
+        # 3. Using parse.urlparse helps us to get the GET parameters of the url_path with 'parsed_url.query'
         parsed_url = parse.urlparse(url_path)
 
         # query_params is not cleared
@@ -269,6 +268,5 @@ class ClearFilterView(APIView):
 
         # Reconstruct the URL with filtered query parameters and queries is cleared
         new_query_params = parse.urlencode(cleared_queries, doseq=True)
-        print(new_query_params)
         new_url = f"/course/filter-data?{new_query_params}"
         return HttpResponseRedirect(new_url)

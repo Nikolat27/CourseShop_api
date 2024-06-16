@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from course_app.models import Course, Enrollment
 from . import serializers
-from .models import CartItem, Cart, Order, OrderItem
+from .models import CartItem, Cart, Order, OrderItem, Coupon
 from rest_framework import status
 
 
@@ -61,6 +61,25 @@ class CartItemDeleteView(APIView):
         cart_item.delete()
         return Response({"response": "Your Course has been deleted from your cart successfully!"},
                         status=status.HTTP_200_OK)
+
+
+class ApplyCouponView(APIView):
+    def post(self, request):
+        coupon_code = request.data.get("coupon_code")
+        coupon = get_object_or_404(Coupon, code=coupon_code)
+        cart = Cart.objects.get(user=request.user)
+
+        # First we will check that our coupon does exist or not! and is it expired or inactivate or not
+        if coupon and not coupon.expired and coupon.active:
+            # Second we have to check that our cart`s subtotal is greater than the limit price or not
+            if cart.subtotal() > coupon.limit_price and cart.subtotal() < coupon.maximum_price:
+                current_usages = Cart.objects.filter(coupon=coupon).count()
+                # Third we have to compare the current_usages and max_usages of the coupon
+                if current_usages < coupon.max_usage:
+                    cart.coupon = coupon
+                    cart.coupon_is_used = True
+                    cart.save()
+                    return Response({"response": "You applied your discount coupon"}, status=status.HTTP_200_OK)
 
 
 class CheckoutView(APIView):

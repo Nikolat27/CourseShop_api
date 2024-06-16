@@ -8,37 +8,6 @@ from course_app.models import Course
 
 # Create your models here.
 
-
-class Cart(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="user_cart", null=True, blank=True)
-    session_id = models.CharField(max_length=100, null=True, blank=True, unique=True)
-
-    def __str__(self):
-        if self.user:
-            return self.user.username
-
-    def len(self):
-        len = 0
-        for item in self.cart_items.all():
-            len += 1
-        return len
-
-    def subtotal(self):
-        subtotal = 0
-        for item in self.cart_items.all():
-            subtotal += item.price
-        return subtotal
-
-
-class CartItem(models.Model):
-    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="cart_items")
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="course_in_cart")
-    price = models.DecimalField(max_digits=10, decimal_places=3)
-
-    def __str__(self):
-        return f"{self.cart} - {self.course.title}"
-
-
 class Coupon(models.Model):
     code = models.CharField(max_length=50, unique=True)
     discount_percentage = models.FloatField(validators=[MinValueValidator(0), MaxValueValidator(100)])
@@ -57,11 +26,48 @@ class Coupon(models.Model):
         super().__init__(*args, **kwargs)
         now = timezone.now()
         if self.valid_from and self.valid_to:
-            if now > self.valid_to:
+            if now > self.valid_to or now < self.valid_from:
                 self.expired = True
                 self.save()
             else:
                 self.save()
+
+
+class Cart(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="user_cart", null=True, blank=True)
+    session_id = models.CharField(max_length=100, null=True, blank=True, unique=True)
+    coupon = models.ForeignKey(Coupon, on_delete=models.SET_NULL, related_name="user_coupon", null=True, blank=True)
+    coupon_is_used = models.BooleanField(default=False)
+
+    def __str__(self):
+        if self.user:
+            return self.user.username
+
+    def len(self):
+        len = 0
+        for item in self.cart_items.all():
+            len += 1
+        return len
+
+    def subtotal(self):
+        subtotal = 0
+        for item in self.cart_items.all():
+            item.price += subtotal
+
+        if self.coupon_is_used:
+            discounted_price = (self.coupon.discount_percentage / 100) * subtotal
+            subtotal = subtotal - discounted_price
+
+        return subtotal
+
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="cart_items")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="course_in_cart")
+    price = models.DecimalField(max_digits=10, decimal_places=3)
+
+    def __str__(self):
+        return f"{self.cart} - {self.course.title}"
 
 
 class Order(models.Model):
