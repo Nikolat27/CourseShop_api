@@ -271,9 +271,3 @@ class ClearFilterView(APIView):
         new_query_params = parse.urlencode(cleared_queries, doseq=True)
         new_url = f"/course/filter-data?{new_query_params}"
         return HttpResponseRedirect(new_url)
-
-
-def q(request):
-    lectures = Lecture.objects.all().order_by("-created_at")
-    serializer = serializers.LectureSerializer(lectures, many=True)
-    return JsonResponse({"data": serializer.data})
