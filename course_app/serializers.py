@@ -48,7 +48,9 @@ class LectureSerializer(serializers.ModelSerializer):
         exclude = ["created_at"]
 
     def get_duration(self, obj):
-        return obj.calculate_duration()
+        duration = obj.calculate_duration()
+        duration_in_minute = duration / 60
+        return round(duration_in_minute, 2)
 
 
 class CourseSerializer(serializers.ModelSerializer):
