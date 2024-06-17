@@ -1,5 +1,7 @@
 from django.db import models
 from django.db.models import Avg
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.text import slugify
@@ -109,12 +111,12 @@ class Lecture(models.Model):
     def __str__(self):
         return f"{self.title} - Seasons: {self.season.title}"
 
-    def save(self, *args, **kwargs):
+    def calculate_duration(self):
         if self.file:
             clip = VideoFileClip(self.file.path)
-            self.duration = int(clip.duration)
+            duration = int(clip.duration)
             clip.close()
-        super(Lecture, self).save(*args, **kwargs)
+            return duration
 
 
 class Prerequisite(models.Model):

@@ -14,4 +14,5 @@ urlpatterns = [
     path("categories", views.CategoryView.as_view()),
     path("filter-data", views.CourseFilterView.as_view()),
     path("clear_filters", views.ClearFilterView.as_view()),
+    path("q", views.q),
 ]

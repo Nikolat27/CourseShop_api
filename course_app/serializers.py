@@ -41,9 +41,14 @@ class SeasonSerializer(serializers.ModelSerializer):
 
 
 class LectureSerializer(serializers.ModelSerializer):
+    duration = serializers.SerializerMethodField()
+
     class Meta:
         model = models.Lecture
         exclude = ["created_at"]
+
+    def get_duration(self, obj):
+        return obj.calculate_duration()
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -100,17 +105,11 @@ class CourseSerializer(serializers.ModelSerializer):
 
     def get_total_hours(self, obj):
         lectures = models.Lecture.objects.filter(season__course=obj)
-        total_hours = 0
-        # for lecture in lectures:
-        #     file_path = lecture.file.path
-        #     result = subprocess.run(
-        #         ['ffprobe', '-i', file_path, '-show_entries', 'format=duration', '-v', 'quiet', '-of', 'csv=p=0'],
-        #         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        #
-        #     if result.returncode == 0:
-        #         duration = float(result.stdout)
-        #         total_hours += duration / 3600  # Convert duration from seconds to hours
-        return total_hours
+        duration = 0
+        for lecture in lectures:
+            duration += lecture.calculate_duration()
+        duration /= 3600
+        return round(duration, 2)
 
     def get_total_reviews(self, obj):
         return obj.comments.all().count()

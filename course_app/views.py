@@ -1,11 +1,10 @@
 from urllib import parse
 from django.db.models import Avg, Count
-from django.http import QueryDict, HttpRequest, HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
-from django.test import RequestFactory
+from moviepy.video.io.VideoFileClip import VideoFileClip
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
-from rest_framework.test import APIRequestFactory
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
@@ -13,6 +12,8 @@ from rest_framework.viewsets import ViewSet
 from . import serializers
 import requests
 from .models import Course, Season, Lecture, Prerequisite, Enrollment, Review, Subtitle, Category
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 
 
 # Create your views here.
@@ -270,3 +271,9 @@ class ClearFilterView(APIView):
         new_query_params = parse.urlencode(cleared_queries, doseq=True)
         new_url = f"/course/filter-data?{new_query_params}"
         return HttpResponseRedirect(new_url)
+
+
+def q(request):
+    lectures = Lecture.objects.all().order_by("-created_at")
+    serializer = serializers.LectureSerializer(lectures, many=True)
+    return JsonResponse({"data": serializer.data})
