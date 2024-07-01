@@ -41,11 +41,15 @@ class SeasonSerializer(serializers.ModelSerializer):
 
 
 class LectureSerializer(serializers.ModelSerializer):
+    season_title = serializers.SerializerMethodField()
     duration = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Lecture
         exclude = ["created_at"]
+
+    def get_season_title(self, obj):
+        return obj.season.title
 
     def get_duration(self, obj):
         duration = obj.calculate_duration()
